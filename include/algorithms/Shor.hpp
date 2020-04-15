@@ -12,6 +12,10 @@ namespace qc {
 
 		void Ua(QuantumComputation& qc);
 
+		void pADD(QuantumComputation& qc, int startQB, unsigned long number);
+
+		void pADDmodN(QuantumComputation& qc);
+
 		void iQFT(QuantumComputation& qc);
 
 		void full_Shor(QuantumComputation& qc);
