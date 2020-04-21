@@ -16,12 +16,14 @@ namespace qc {
 
 		void pADDmodN(QuantumComputation& qc);
 
-		void iQFT(QuantumComputation& qc);
+		void iQFT(QuantumComputation& qc, int startQB, int qftSize);
+
+		void QFT(QuantumComputation& qc, int startQB, int qftSize);
 
 		void full_Shor(QuantumComputation& qc);
 
 	public:
-		unsigned long	   n;
+		unsigned long	   N;
 		unsigned long      a;
 		unsigned long	   size = -1;
 
