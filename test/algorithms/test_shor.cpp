@@ -8,13 +8,13 @@ protected:
 };
 
 INSTANTIATE_TEST_SUITE_P(Shor, Shor,
-	testing::Values(5ull, 10ull, 50ull),
+	testing::Values(1, 2, 3, 4, 5, 6, 7, 8, 9, 10),
 	[](const testing::TestParamInfo<Shor::ParamType>& info) {
 
 		// Generate names for test cases
 		int a = info.param;
 		std::stringstream ss{};
-		ss << a << "_a Value";
+		ss << a << "_a_Value";
 		return ss.str();
 	});
 
@@ -25,13 +25,22 @@ TEST_P(Shor, FunctionTest) {
 	dd::Edge e{};
 
 	// Create the QuantumCircuite with the hidden integer
-	ASSERT_NO_THROW({ qc = std::make_unique<qc::Shor>(200, a); });
+	ASSERT_NO_THROW({ qc = std::make_unique<qc::Shor>(16ull, a.to_ulong()); });
 	ASSERT_NO_THROW({ e = qc->buildFunctionality(dd); });
 
-	dd::Edge r = dd->multiply(e, dd->makeZeroState(qc->size));
-	std::string hIntPath = std::string(qc->size, '0');
+	dd::Edge r = dd->multiply(e, dd->makeZeroState(qc->getNqubits()));
 
 	dd::Edge result = qc->simulate(r, dd);
 
-	dd->printVector(result);
+	std::string testA = std::string(qc->getNqubits(), '0');
+
+	// Create the path-string
+	for (int i = 0; i < qc->getNqubits(); i++)
+	{
+		if (a[i] == 1) {
+			testA[i] = '2';
+		}
+	}
+	dd->printVector(r);
+	EXPECT_EQ(true, false);
 }

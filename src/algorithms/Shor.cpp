@@ -21,22 +21,30 @@ namespace qc {
 	// Adds a classical number to a QF-transformed number. Size is defined as N+1.
 	// startQB: The first qubit in the Adder
 	// number: The classical number
-	void Shor::pADD(QuantumComputation& qc, int startQB, unsigned long number) 
+	void Shor::pADD(QuantumComputation& qc, int startQB, int nInputQB, unsigned long number, bool invert)
 	{
+		std::bitset<64> aBitSet(number);
+
 		// Loop traversing from qubit x to x+n over n qubits, where n is the bitsize of N. 
 		// The last additional qubit is to prevent overflow after the QFT. 
-		for (unsigned short i = startQB; i < startQB + size; ++i) {
-			std::bitset<64> aBitSet(number);
+		for (unsigned int i = startQB; i < startQB + nInputQB; ++i) {
 
 			// Precalculating the Phaseshift
 			double phaseShift = 0;
-			for (unsigned short j = 0; j <= i - startQB; ++j) {
-				phaseShift += aBitSet[j] / std::pow(2, i - startQB - j);
+			for (unsigned int j = i; j < startQB + nInputQB; ++j) {
+				phaseShift += aBitSet[j - startQB] / std::pow(2, j - i);
 			}
 			phaseShift *= static_cast<fp>(PI);
 
+			// Invert the Adder
+			int m1 = 1;
+			if (invert)
+			{
+				m1 = -1;
+			}
+
 			// Add the gate with the precalculated phaseShift = Ai
-			emplace_back<StandardOperation>(nqubits, i, RZ, phaseShift);
+			emplace_back<StandardOperation>(nqubits, i, RZ, m1*phaseShift);
 		}
 	}
 
@@ -47,11 +55,11 @@ namespace qc {
 
 	// Quantum Fourier Transform block
 	// startQB: The first qubit in the QFT
-	// qftSize: The number of qubits in the QFT
-	void Shor::QFT(QuantumComputation& qc, int startQB, int qftSize) {
-		for (unsigned short i = startQB; i < startQB + qftSize; ++i) {
+	// nInputQB: The number of qubits in the QFT
+	void Shor::QFT(QuantumComputation& qc, int startQB, int nInputQB) {
+		for (unsigned short i = startQB; i < startQB + nInputQB; ++i) {
 			emplace_back<StandardOperation>(nqubits, i, H);
-			for (unsigned short j = 1; j < qftSize - (i - startQB); ++j) {
+			for (unsigned short j = 1; j < nInputQB - (i - startQB); ++j) {
 				long double powerOfTwo = std::pow(2.L, j);
 				auto lambda = static_cast<fp>(PI / powerOfTwo);
 				if (j == 1) {
@@ -69,10 +77,10 @@ namespace qc {
 
 	// Inverse Quantum Fourier Transform block
 	// startQB: The first qubit in the iQFT
-	// qftSize: The number of qubits in the iQFT
-	void Shor::iQFT(QuantumComputation& qc, int startQB, int qftSize) {
-		for (unsigned short i = startQB + qftSize - 1; i >= startQB; --i) {
-			for (unsigned short j = 1; j < qftSize - (i - startQB); ++j) {
+	// nInputQB: The number of qubits in the iQFT
+	void Shor::iQFT(QuantumComputation& qc, int startQB, int nInputQB) {
+		for (int i = startQB + nInputQB - 1; i >= startQB; --i) {
+			for (unsigned short j = 1; j < nInputQB - (i - startQB); ++j) {
 				long double powerOfTwo = std::pow(2.L, j);
 				auto lambda = static_cast<fp>(PI / powerOfTwo);
 				if (j == 1) {
@@ -92,9 +100,9 @@ namespace qc {
 	void Shor::full_Shor(QuantumComputation& qc) {
 		// TODO: Generate circuit
 
-		QFT(qc, 0, N + 1);
-		pADD(qc, 0, a);
-		iQFT(qc, 0, N + 1);
+		QFT(qc, 2, 5);
+		pADD(qc, 2, 5, a);
+		iQFT(qc, 2, 5);
 	}
 
 	/***
@@ -106,8 +114,10 @@ namespace qc {
 		while (N >> ++(size) > 0);
 
 		// Set nr of Qubits/ClassicalBits
-		addQubitRegister(2 * size + 3);
-		addClassicalRegister(2 * size);
+		//addQubitRegister(2 * size + 3);
+		//addClassicalRegister(2 * size);
+		addQubitRegister(size+2);
+		addClassicalRegister(size+2);
 
 		// Circuit
 		full_Shor(*this);
