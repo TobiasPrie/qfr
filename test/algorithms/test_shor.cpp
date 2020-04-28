@@ -25,7 +25,7 @@ TEST_P(Shor, FunctionTest) {
 	dd::Edge e{};
 
 	// Create the QuantumCircuite with the hidden integer
-	ASSERT_NO_THROW({ qc = std::make_unique<qc::Shor>(16ull, a.to_ulong()); });
+	ASSERT_NO_THROW({ qc = std::make_unique<qc::Shor>(3ull, a.to_ulong()); });
 	ASSERT_NO_THROW({ e = qc->buildFunctionality(dd); });
 
 	dd::Edge r = dd->multiply(e, dd->makeZeroState(qc->getNqubits()));
@@ -34,13 +34,6 @@ TEST_P(Shor, FunctionTest) {
 
 	std::string testA = std::string(qc->getNqubits(), '0');
 
-	// Create the path-string
-	for (int i = 0; i < qc->getNqubits(); i++)
-	{
-		if (a[i] == 1) {
-			testA[i] = '2';
-		}
-	}
 	dd->printVector(r);
 	EXPECT_EQ(true, false);
 }

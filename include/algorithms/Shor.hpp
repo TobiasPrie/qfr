@@ -12,9 +12,9 @@ namespace qc {
 
 		void Ua(QuantumComputation& qc);
 
-		void pADD(QuantumComputation& qc, int startQB, int nInputQB, unsigned long number, bool invert = false);
+		void pADD(QuantumComputation& qc, std::vector<Control> controls, int startQB, unsigned long value, bool invert = false);
 
-		void pADDmodN(QuantumComputation& qc);
+		void pADDmodN(QuantumComputation& qc, int startQB);
 
 		void iQFT(QuantumComputation& qc, int startQB, int nInputQB);
 
