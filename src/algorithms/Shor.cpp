@@ -26,10 +26,9 @@ namespace qc {
 	void Shor::pADD(QuantumComputation& qc, std::vector<Control> controls, int startQB, unsigned long value, bool invert)
 	{
 		std::bitset<64> aBitSet(value);
+		int aSize = 0;
 
-		// Loop traversing from qubit x to x+n over n qubits, where n is the bitsize of N. 
-		// The last additional qubit is to prevent overflow after the QFT. 
-		for (unsigned int i = startQB; i < startQB + size + 1; ++i)
+		for (unsigned int i = startQB; i <= startQB + size; ++i)
 		{
 			double phaseShift = 0;
 			for (unsigned int j = startQB; j < startQB + size; ++j) {
@@ -62,7 +61,7 @@ namespace qc {
 		// Calculate (x + a) - N
 		pADD(qc, controlsOut, startQB, value);
 		pADD(qc, {}, startQB, N, true);
-		iQFT(qc, 2, size + 1);
+		iQFT(qc, startQB, size + 1);
 
 		// Set Ancilla <=> (x + a) - N < 0
 		emplace_back<StandardOperation>(nqubits, Control(startQB + size), startQB + size + 1, X);
@@ -81,6 +80,25 @@ namespace qc {
 
 		QFT(qc, startQB, size + 1);
 		pADD(qc, controlsOut, startQB, value);
+	}
+
+	// Calculates: (b + a*x) % N
+	// startQB: The first qubit of the ADDmodN-Block without the contolling qubits
+	void Shor::CMULTmodN(QuantumComputation& qc, int startQB)
+	{
+		std::vector<Control> controls{};
+		controls.emplace_back(0);
+		
+		QFT(qc, size + 1, size + 1);
+		unsigned long value = a;
+		for (int i = 0; i < size; i++)
+		{
+			controls.emplace_back(i+1);
+			pADDmodN(qc, controls, value % N, size + 1);
+			value *= 2;
+			controls.pop_back();
+		}
+		iQFT(qc, size + 1, size + 1);
 	}
 
 	// Quantum Fourier Transform block
@@ -114,15 +132,15 @@ namespace qc {
 	}
 
 	void Shor::full_Shor(QuantumComputation& qc) {
-		// TODO: Generate circuit
-		std::vector<Control> controls{};
-		controls.emplace_back(0);
-		controls.emplace_back(1);
+
 		emplace_back<StandardOperation>(nqubits, 0, X);
-		emplace_back<StandardOperation>(nqubits, 1, X);
-		QFT(qc, 2, size + 1);
-		pADDmodN(qc, controls, a, 2);
-		iQFT(qc, 2, size + 1);
+		for (int i = 1; i < size + 1; i++)
+		{
+			emplace_back<StandardOperation>(nqubits, i, X);
+		}
+
+		// TODO: Generate circuit
+		CMULTmodN(qc, size + 1);
 	}
 
 	/***
@@ -136,8 +154,8 @@ namespace qc {
 		// Set nr of Qubits/ClassicalBits
 		//addQubitRegister(2 * size + 3);
 		//addClassicalRegister(2 * size);
-		addQubitRegister(size+4);
-		addClassicalRegister(size+4);
+		addQubitRegister(2 * size + 3);
+		addClassicalRegister(2 * size + 3);
 
 		// Circuit
 		full_Shor(*this);

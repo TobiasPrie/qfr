@@ -8,7 +8,7 @@ protected:
 };
 
 INSTANTIATE_TEST_SUITE_P(Shor, Shor,
-	testing::Values(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15),
+	testing::Values(2, 3, 4),
 	[](const testing::TestParamInfo<Shor::ParamType>& info) {
 
 		// Generate names for test cases
@@ -25,7 +25,7 @@ TEST_P(Shor, FunctionTest) {
 	dd::Edge e{};
 
 	// Create the QuantumCircuite with the hidden integer
-	ASSERT_NO_THROW({ qc = std::make_unique<qc::Shor>(8ull, a.to_ulong()); });
+	ASSERT_NO_THROW({ qc = std::make_unique<qc::Shor>(6ull, a.to_ulong()); });
 	ASSERT_NO_THROW({ e = qc->buildFunctionality(dd); });
 
 	dd::Edge r = dd->multiply(e, dd->makeZeroState(qc->getNqubits()));
@@ -34,6 +34,7 @@ TEST_P(Shor, FunctionTest) {
 
 	std::string testA = std::string(qc->getNqubits(), '0');
 
+	//qc->print(std::cout);
 	dd->printVector(r);
 	EXPECT_EQ(true, false);
 }

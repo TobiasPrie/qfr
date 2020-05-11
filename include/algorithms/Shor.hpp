@@ -16,6 +16,8 @@ namespace qc {
 
 		void pADDmodN(QuantumComputation& qc, std::vector<Control> controls, unsigned long value, int startQB);
 
+		void CMULTmodN(QuantumComputation& qc, int startQB);
+
 		void iQFT(QuantumComputation& qc, int startQB, int nInputQB);
 
 		void QFT(QuantumComputation& qc, int startQB, int nInputQB);
