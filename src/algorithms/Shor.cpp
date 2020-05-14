@@ -14,8 +14,15 @@ namespace qc {
 		// TODO: Implement Oracle
 	}
 
-	void Shor::Ua(QuantumComputation& qc) {
-		// TODO: Implement Ua
+	void Shor::Ua(QuantumComputation& qc, std::vector<Control> controls, int value, int startQB) {
+		CMULTmodN(qc, controls, value % N, startQB);
+
+		// SWAP the x & b registers
+		for (int i = startQB; i < startQB + size; ++i)
+		{
+			CSWAP(qc, controls, i, i + size);
+		}
+		iCMULTmodN(qc, controls, value % N, startQB);
 	}
 
 	// Adds/Subtract(Inverse) a classical number to a QF-transformed number.
@@ -23,8 +30,15 @@ namespace qc {
 	// startQB: The first qubit in the Adder
 	// value: The classical number
 	// invert: true = subtract, false = add
-	void Shor::pADD(QuantumComputation& qc, std::vector<Control> controls, int startQB, unsigned long value, bool invert)
+	void Shor::ADD(QuantumComputation& qc, std::vector<Control> controls, int startQB, long value, bool invert)
 	{
+		// b + (-a) == b - (+a)
+		if (value < 0)
+		{
+			invert = ~invert;
+			value = -value;
+		}
+
 		std::bitset<64> aBitSet(value);
 		int aSize = 0;
 
@@ -52,15 +66,15 @@ namespace qc {
 	// controlsOut: The control bits for this ADDmodN-Block
 	// value: (Input + value) % N
 	// startQB: The first qubit of the ADDmodN-Block without the contolling qubits
-	void Shor::pADDmodN(QuantumComputation& qc, std::vector<Control> controlsOut, unsigned long value, int startQB)
+	void Shor::ADDmodN(QuantumComputation& qc, std::vector<Control> controlsOut, long value, int startQB)
 	{
 		// Define the controling Qubit inside the the ADDmodN-Block
 		std::vector<Control> controlsIn{};
 		controlsIn.emplace_back(startQB + size + 1);
-		
+
 		// Calculate (x + a) - N
-		pADD(qc, controlsOut, startQB, value);
-		pADD(qc, {}, startQB, N, true);
+		ADD(qc, controlsOut, startQB, value);
+		ADD(qc, {}, startQB, N, true);
 		iQFT(qc, startQB, size + 1);
 
 		// Set Ancilla <=> (x + a) - N < 0
@@ -68,10 +82,10 @@ namespace qc {
 
 		// (x + a) - N + N <=> (x + a) - N < 0
 		QFT(qc, startQB, size + 1);
-		pADD(qc, controlsIn, startQB, N);
+		ADD(qc, controlsIn, startQB, N);
 
 		// Reset the Ancilla
-		pADD(qc, controlsOut, startQB, value, true);
+		ADD(qc, controlsOut, startQB, value, true);
 		iQFT(qc, startQB, size + 1);
 
 		emplace_back<StandardOperation>(nqubits, startQB + size, X);
@@ -79,28 +93,61 @@ namespace qc {
 		emplace_back<StandardOperation>(nqubits, startQB + size, X);
 
 		QFT(qc, startQB, size + 1);
-		pADD(qc, controlsOut, startQB, value);
+		ADD(qc, controlsOut, startQB, value);
 	}
+
+	void Shor::iADDmodN(QuantumComputation& qc, std::vector<Control> controlsOut, long value, int startQB)
+	{
+		// Define the controling Qubit inside the the ADDmodN-Block
+		std::vector<Control> controlsIn{};
+		controlsIn.emplace_back(startQB + size + 1);
+
+		ADD(qc, controlsOut, startQB, value, true);
+		iQFT(qc, startQB, size + 1);
+
+		emplace_back<StandardOperation>(nqubits, startQB + size, X);
+		emplace_back<StandardOperation>(nqubits, Control(startQB + size), startQB + size + 1, X);
+		emplace_back<StandardOperation>(nqubits, startQB + size, X);
+
+		QFT(qc, startQB, size + 1);
+		ADD(qc, controlsOut, startQB, value);
+		ADD(qc, controlsIn, startQB, N, true);
+		iQFT(qc, startQB, size + 1);
+
+		emplace_back<StandardOperation>(nqubits, Control(startQB + size), startQB + size + 1, X);
+		QFT(qc, startQB, size + 1);
+		ADD(qc, {}, startQB, N);
+		ADD(qc, controlsOut, startQB, value, true);
+	}
+
 
 	// Calculates: (b + a*x) % N
 	// startQB: The first qubit of the ADDmodN-Block without the contolling qubits
-	void Shor::CMULTmodN(QuantumComputation& qc, int startQB)
+	void Shor::CMULTmodN(QuantumComputation& qc, std::vector<Control> controls, int value, int startQB)
 	{
-		std::vector<Control> controls{};
-		controls.emplace_back(0);
-		
-		QFT(qc, size + 1, size + 1);
-		unsigned long value = a;
-		for (int i = 0; i < size; i++)
+		QFT(qc, startQB + size, size + 1);
+		for (int i = 0; i < size; ++i)
 		{
-			controls.emplace_back(i+1);
-			pADDmodN(qc, controls, value % N, size + 1);
+			controls.emplace_back(startQB + i);
+			ADDmodN(qc, controls, value % N, startQB + size);
 			value *= 2;
 			controls.pop_back();
 		}
-		iQFT(qc, size + 1, size + 1);
+		iQFT(qc, startQB + size, size + 1);
 	}
 
+	void Shor::iCMULTmodN(QuantumComputation& qc, std::vector<Control> controls, int value, int startQB)
+	{
+		QFT(qc, startQB + size, size + 1);
+		for (int i = 0; i < size; ++i)
+		{
+			controls.emplace_back(startQB + i);
+			iADDmodN(qc, controls, iModN(value % N), startQB + size);
+			value *= 2;
+			controls.pop_back();
+		}
+		iQFT(qc, startQB + size, size + 1);
+	}
 	// Quantum Fourier Transform block
 	// startQB: The first qubit in the QFT
 	// nInputQB: The number of qubits in the QFT
@@ -131,16 +178,31 @@ namespace qc {
 		}
 	}
 
-	void Shor::full_Shor(QuantumComputation& qc) {
+	void Shor::CSWAP(QuantumComputation& qc, std::vector<Control> controls, int qubitA, int qubitB)
+	{
+		emplace_back<StandardOperation>(nqubits, Control(qubitB), qubitA, X);
 
+		controls.emplace_back(qubitA);
+		emplace_back<StandardOperation>(nqubits, controls, qubitB, X);
+		controls.pop_back();
+
+		emplace_back<StandardOperation>(nqubits, Control(qubitB), qubitA, X);
+	}
+
+	void Shor::full_Shor(QuantumComputation& qc) 
+	{
 		emplace_back<StandardOperation>(nqubits, 0, X);
-		for (int i = 1; i < size + 1; i++)
+		emplace_back<StandardOperation>(nqubits, 1, X);
+		emplace_back<StandardOperation>(nqubits, 2, X);
+		//emplace_back<StandardOperation>(nqubits, 3, X);
+		emplace_back<StandardOperation>(nqubits, 4, X);
+		/*for (int i = 1; i < size + 1; i++)
 		{
 			emplace_back<StandardOperation>(nqubits, i, X);
-		}
-
-		// TODO: Generate circuit
-		CMULTmodN(qc, size + 1);
+		}*/
+		std::vector<Control> controls{};
+		controls.emplace_back(0);
+		Ua(qc, controls, a, 1);
 	}
 
 	/***
@@ -159,6 +221,43 @@ namespace qc {
 
 		// Circuit
 		full_Shor(*this);
+	}
+
+	// Caluculating the modular inverse of a mod N
+	// by an iterativ extended euclidean algorithm
+	int Shor::iModN(int value)
+	{
+		int x = N, y = value;
+		int ux = 1, vx = 0, uy = 0, vy = 1;
+		int q, r;
+		while (y != 1)
+		{
+			// Requirement not satisfied: gcd(N,a) == 1
+			if (y == 0)
+			{
+				throw "gcd(N,a) > 1";
+			}
+
+			// Set quotient and remainder
+			q = x / y;
+			r = x % y;
+
+			// Set new u & v values
+			x = -uy * q + ux;
+			ux = uy;
+			uy = x;
+
+			x = -vy * q + vx;
+			vx = vy;
+			vy = x;
+
+			// Set new x & y
+			x = y;
+			y = r;
+		}
+
+		// Return the positiv modular inverse
+		return vy < 0 ? vy + N : vy;
 	}
 
 	std::ostream& Shor::printStatistics(std::ostream& os) {
