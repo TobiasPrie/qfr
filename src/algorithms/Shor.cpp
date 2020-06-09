@@ -6,12 +6,59 @@ namespace qc {
 	/***
 	 * Private Methods
 	 ***/
+
+	// Set up all qubits for running the algorithm
 	void Shor::setup(QuantumComputation& qc) {
-		
+		emplace_back<StandardOperation>(nqubits, 1, X);
 	}
 
 	void Shor::oracle(QuantumComputation& qc) {
-		// TODO: Implement Oracle
+		
+		// Controlle Qubit for the C-Ua
+		std::vector<Control> controls{};
+		controls.emplace_back(0);
+
+		// Vectors for measuring
+		std::vector<unsigned short> qubit{};
+		std::vector<unsigned short> singleMeasure{};
+		std::vector<unsigned long> measure{};
+		
+		qubit.emplace_back(0);
+		singleMeasure.emplace_back(0);
+
+		int uaValue;
+		for (int i = 0; i < 2 * size; i++)
+		{
+			// Create the value for this C-Ua
+			uaValue = std::pow(a, std::pow(2, i));
+
+			emplace_back<StandardOperation>(nqubits, 0, H);
+			Ua(qc, controls, uaValue, 1);
+			
+			// Calculate the Shift
+			long double lambda = 0;
+
+			// Creating the QFT-Parts
+			for (int power = i + 1, cbit = 0; power > 1; power--, cbit++)
+			{
+				long double powerOfTwo = std::pow(2.L, power);
+				lambda = static_cast<fp>(PI / powerOfTwo);
+
+				// TODO: Replace StandardOperation with ClassicControlledOperation
+				emplace_back<StandardOperation>(nqubits, 0, RZ, lambda);
+				//emplace_back<ClassicControlledOperation>(nqubits, measure[cbit], RZ, lambda);
+			}
+			emplace_back<StandardOperation>(nqubits, 0, H);
+			
+			// Measure
+			// TODO: Correct implementation of the measure
+			emplace_back<NonUnitaryOperation>(nqubits, qubit, singleMeasure);
+			measure.emplace_back(singleMeasure[0]);
+
+			// TODO: Replace StandardOperation with ClassicControlledOperation
+			emplace_back<StandardOperation>(nqubits, 0, H);
+			//emplace_back<ClassicControlledOperation>(nqubits, measure[i], H, lambda);
+		}
 	}
 
 	void Shor::Ua(QuantumComputation& qc, std::vector<Control> controls, int value, int startQB) {
@@ -22,7 +69,10 @@ namespace qc {
 		{
 			CSWAP(qc, controls, i, i + size);
 		}
-		iCMULTmodN(qc, controls, value % N, startQB);
+		QFT(qc, startQB + size, size + 1);
+		ADDmodN(qc, {}, 0, startQB + size);
+		iQFT(qc, startQB + size, size + 1);
+		iCMULTmodN(qc, controls, iModN(value), startQB);
 	}
 
 	// Adds/Subtract(Inverse) a classical number to a QF-transformed number.
@@ -142,7 +192,7 @@ namespace qc {
 		for (int i = 0; i < size; ++i)
 		{
 			controls.emplace_back(startQB + i);
-			iADDmodN(qc, controls, iModN(value % N), startQB + size);
+			iADDmodN(qc, controls, value % N, startQB + size);
 			value *= 2;
 			controls.pop_back();
 		}
@@ -191,18 +241,8 @@ namespace qc {
 
 	void Shor::full_Shor(QuantumComputation& qc) 
 	{
-		emplace_back<StandardOperation>(nqubits, 0, X);
-		emplace_back<StandardOperation>(nqubits, 1, X);
-		emplace_back<StandardOperation>(nqubits, 2, X);
-		//emplace_back<StandardOperation>(nqubits, 3, X);
-		emplace_back<StandardOperation>(nqubits, 4, X);
-		/*for (int i = 1; i < size + 1; i++)
-		{
-			emplace_back<StandardOperation>(nqubits, i, X);
-		}*/
-		std::vector<Control> controls{};
-		controls.emplace_back(0);
-		Ua(qc, controls, a, 1);
+		setup(qc);
+		oracle(qc);
 	}
 
 	/***

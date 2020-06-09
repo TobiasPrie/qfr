@@ -25,7 +25,7 @@ TEST_P(Shor, FunctionTest) {
 	dd::Edge e{};
 
 	// Create the QuantumCircuite with the hidden integer
-	ASSERT_NO_THROW({ qc = std::make_unique<qc::Shor>(11ull, a.to_ulong()); });
+	ASSERT_NO_THROW({ qc = std::make_unique<qc::Shor>(15ull, a.to_ulong()); });
 	ASSERT_NO_THROW({ e = qc->buildFunctionality(dd); });
 
 	dd::Edge r = dd->multiply(e, dd->makeZeroState(qc->getNqubits()));
